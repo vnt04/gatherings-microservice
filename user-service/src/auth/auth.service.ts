@@ -1,11 +1,48 @@
-import { Injectable } from '@nestjs/common';
-import { CreateAuthDto } from './dto/create-auth.dto';
+import {
+  Injectable,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
+import { LoginDTO } from './dto/login';
 import { UpdateAuthDto } from './dto/update-auth.dto';
+import { PrismaClient } from '@prisma/client';
+import { JwtService } from '@nestjs/jwt';
+import { comparePassword } from 'src/user/helper/bcrypt';
+import * as dotenv from 'dotenv';
+dotenv.config();
+const prisma = new PrismaClient();
 
 @Injectable()
 export class AuthService {
-  create(createAuthDto: CreateAuthDto) {
-    return 'This action adds a new auth';
+  constructor(private jwtService: JwtService) {}
+
+  async login(userLogin: LoginDTO) {
+    const { email, password } = userLogin;
+    // check if email isn't exist
+    const user = await prisma.user.findFirst({
+      where: {
+        email,
+      },
+    });
+    if (!user) {
+      throw new NotFoundException('Email không tồn tại.');
+    }
+
+    // check if password is matching
+    const isPasswordMatch = comparePassword(password, user.password);
+    if (!isPasswordMatch) {
+      throw new UnauthorizedException('Sai mật khẩu.');
+    }
+    // generate access token and refresh token
+    const payload = {
+      sub: user.id,
+      email: user.email,
+    };
+    const access_token = await this.jwtService.signAsync(payload);
+    return {
+      message: 'Login successfully.',
+      access_token,
+    };
   }
 
   findAll() {
