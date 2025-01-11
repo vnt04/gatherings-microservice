@@ -1,0 +1,87 @@
+version: "3.9"
+
+services:
+  kong-database:
+    image: postgres:13
+    environment:
+      POSTGRES_USER: kong
+      POSTGRES_DB: kong
+      POSTGRES_PASSWORD: kong
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "kong"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: on-failure
+    ports:
+      - "5432:5432"
+    networks:
+      - kong-net
+
+  kong:
+    image: kong/kong-gateway:latest
+    environment:
+      KONG_DATABASE: postgres
+      KONG_PG_HOST: kong-database
+      KONG_PG_PASSWORD: kong
+      KONG_ADMIN_LISTEN: 0.0.0.0:8001
+      KONG_ADMIN_GUI_URL: http://localhost:8002
+      KONG_ADMIN_GUI_API_URL: http://localhost:8001
+    ports:
+      - "8000:8000" # Gateway API
+      - "8443:8443" # HTTPS Gateway API
+      - "8001:8001" # Admin API
+      - "8002:8002" # Admin GUI
+      - "8444:8444" # HTTPS Admin API
+    depends_on:
+      - kong-database
+    networks:
+      - kong-net
+
+  kong-migrations:
+    image: kong/kong-gateway:3.2.1.0
+    command: kong migrations bootstrap
+    container_name: kong-migrations
+    networks:
+      - kong-net
+    depends_on:
+      kong-database:
+        condition: service_healthy
+    environment:
+      KONG_DATABASE: postgres
+      KONG_PG_HOST: kong-database
+      KONG_PG_DATABASE: kong
+      KONG_PG_USER: kong
+      KONG_PG_PASSWORD: kong
+    restart: on-failure
+
+  user-service:
+    build:
+      context: ./user-service
+      dockerfile: Dockerfile
+    ports:
+      - "8081:8081"
+    networks:
+      - kong-net
+
+  message-service:
+    build:
+      context: ./message-service
+      dockerfile: Dockerfile
+    ports:
+      - "8082:8082"
+    networks:
+      - kong-net
+
+  conversation-service:
+    build:
+      context: ./conversation-service
+      dockerfile: Dockerfile
+    ports:
+      - "8083:8083"
+    networks:
+      - kong-net
+
+networks:
+  kong-net:
+    driver: bridge
