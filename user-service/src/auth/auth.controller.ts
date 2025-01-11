@@ -20,6 +20,11 @@ export class AuthController {
     return this.authService.login(userLogin);
   }
 
+  @Post('refresh-token')
+  refreshToken(@Body() { refresh_token }): Promise<any> {
+    return this.authService.refreshToken(refresh_token);
+  }
+
   @Get()
   findAll() {
     return this.authService.findAll();

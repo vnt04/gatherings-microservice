@@ -23,6 +23,7 @@ model User {
   avatar_url String?
   is_active Boolean @default(false)
   is_blocked Boolean @default(false)
+  refresh_token String?
   created_at DateTime @default(now())
   updated_at DateTime @default(now())
 }
